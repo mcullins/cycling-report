@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.sound.midi.SysexMessage;
 import java.sql.*;
 import java.text.DateFormatSymbols;
 import java.time.*;
@@ -92,12 +93,18 @@ public class ChartController {
         } else {
             LocalDate localDate = LocalDate.parse(date);
             String formatDate = formatDate(localDate);
-            List<Integer> weekdays = new ArrayList();
+
             Map<Integer, List<Float>> distanceByWeek = new HashMap<>();
 
             for (int i = 0; i < getMonth().size(); i++) {
                 double speed = Math.round((distance / (time / 60)) * 100.0) / 100.0;
                 Entry existingDate = entryRepository.findByDate(formatMonth().get(i));
+
+                DayOfWeek dayOfWeek = getMonth().get(i).getDayOfWeek();
+                int dayNumber = dayOfWeek.getValue();
+
+                LocalDate weekday = getMonth().get(i);
+                int week = weekday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
 
                 if (existingDate == null || !formatMonth().get(i).equals(existingDate.getDate())) {
                     Entry newEntry = new Entry();
@@ -121,67 +128,26 @@ public class ChartController {
                         entryRepository.save(existingDate);
                     }
 
-                    DayOfWeek dayOfWeek = getMonth().get(i).getDayOfWeek();
-                    int dayNumber = dayOfWeek.getValue();
-                    weekdays.add(dayNumber);
-
-                    LocalDate weekday = getMonth().get(i);
-                    int week = weekday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
-
-                    if (existingDate == null || !formatMonth().get(i).equals(existingDate.getDate())) {
-                        Entry newEntry = new Entry();
-                        newEntry.setDate(formatMonth().get(i));
-
-                        if (formatMonth().get(i).equals(formatDate)) {
-                            newEntry.setDistance(distance);
-                            newEntry.setTime(time);
-                            newEntry.setSpeed(speed);
-
-                        }
-                        entryRepository.save(newEntry);
-                    } else {
-                        if (formatMonth().get(i).equals(formatDate)) {
-                            existingDate.setTime(time);
-                            existingDate.setDistance(distance);
-                            existingDate.setSpeed(speed);
-
-                            entryRepository.save(existingDate);
-                        }
-
-                        List<Float> distances = new ArrayList<>();
-                        distances.add(existingDate.getDistance());
-                        for (Float listOfDistances : distances) {
-                            distanceByWeek.computeIfAbsent(week, k -> new ArrayList<>()).add(listOfDistances);
-                        }
-                    }
                     model.addAttribute("entries", entryRepository.findAll());
-                    for (int j = 0; j < getMonth().size(); j++) {
-                        if (distanceByWeek.containsKey(j) && dayNumber == 7) {
-                            existingDate.setTotalDistance(sum(distanceByWeek.get(j)));
-                        }
-                    }
+
+
+
                 }
                 if (existingDate != null) {
+                    List<Float> distances = new ArrayList<>();
+                    distances.add(existingDate.getDistance());
+                    for (Float listOfDistances : distances) {
+                        distanceByWeek.computeIfAbsent(week, k -> new ArrayList<>()).add(listOfDistances);
+                    }
+                    Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+                    for (Map.Entry<Integer, List<Float>> totalDist : distanceByWeek.entrySet()) {
+                        if (totalDist.getKey() == week && dayNumber == 7) {
+                            existingDate.setTotalDistance(sum(totalDist.getValue()));
+                        }
+                    }
                     entryRepository.save(existingDate);
                 }
-/*
-                Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/cyclingrecord", "cyclingrecord", "Hmveonl00");
-
-                PreparedStatement yearStmt = conn.prepareStatement("SELECT date FROM cyclingrecord.entry");
-                ResultSet rs = yearStmt.executeQuery();
-                int count = 0;
-                while(rs.next()) {
-                    count++;
-                }
-                ArrayList<String> months = new ArrayList<>();
-                for(int j = 0; j< count; j++) {
-                    if (date.contains(formatMonth().get(j))) {
-                        months.add(formatMonth().get(j));
-                    }
-                }
-                model.addAttribute("months", months);
-                conn.close();
-*/            }
+            }
         }
         return "monthly";
     }
