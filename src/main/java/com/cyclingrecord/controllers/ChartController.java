@@ -43,17 +43,43 @@ public class ChartController {
         return entireMonth;
     }
 
+    public ArrayList<String> getPreviousMonth(@RequestParam String date) {
+        ArrayList<String> entireMonth = new ArrayList<>();
+        String[] splitDate = date.split("-");
+        int month = Integer.parseInt(splitDate[1].trim());
+        int year = Integer.parseInt(splitDate[0]);
+        YearMonth currentMonth = YearMonth.of(year, month);
+        for (int i = 1; i < currentMonth.lengthOfMonth() + 1; i++) {
+            LocalDate ld = currentMonth.atDay(i);
+            entireMonth.add(ld.toString());
+        }
+        return entireMonth;
+    }
+
     public String formatDate(LocalDate dateToFormat) {
-        LocalDate ld = dateToFormat;
         DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("dd-MMM");
-        String dayString = ld.format(myFormatObj);
-        return dayString;
+        return dateToFormat.format(myFormatObj);
     }
 
     public ArrayList<String> formatMonth() {
         ArrayList<String> dateString = new ArrayList<>();
         for (int i = 0; i <= getMonth().size() - 1; i++) {
             dateString.add(formatDate(getMonth().get(i)));
+        }
+        return dateString;
+    }
+
+    public String formatPreviousDate(String dateToFormat) {
+        LocalDate ld = LocalDate.parse(dateToFormat);
+        DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("dd-MMM");
+        String dayString = ld.format(myFormatObj);
+        return dayString;
+    }
+
+    public ArrayList<String> formatPreviousMonth(String date) {
+        ArrayList<String> dateString = new ArrayList<>();
+        for (int i = 0; i <= getPreviousMonth(date).size() - 1; i++) {
+            dateString.add(formatPreviousDate(getPreviousMonth(date).get(i)));
         }
         return dateString;
     }
@@ -94,11 +120,14 @@ public class ChartController {
             LocalDate localDate = LocalDate.parse(date);
             String formatDate = formatDate(localDate);
 
+
             Map<Integer, List<Float>> distanceByWeek = new HashMap<>();
 
-            for (int i = 0; i < getMonth().size(); i++) {
+            for (int i = 0; i < getPreviousMonth(date).size(); i++) {
                 double speed = Math.round((distance / (time / 60)) * 100.0) / 100.0;
-                Entry existingDate = entryRepository.findByDate(formatMonth().get(i));
+                Entry existingDate = entryRepository.findByDate(formatDate);
+                Entry previousEntry = entryRepository.findByDate(formatDate);
+
 
                 DayOfWeek dayOfWeek = getMonth().get(i).getDayOfWeek();
                 int dayNumber = dayOfWeek.getValue();
@@ -106,34 +135,71 @@ public class ChartController {
                 LocalDate weekday = getMonth().get(i);
                 int week = weekday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
 
-                if (existingDate == null || !formatMonth().get(i).equals(existingDate.getDate())) {
-                    Entry newEntry = new Entry();
-                    newEntry.setDate(formatMonth().get(i));
-                    newEntry.setDistance(0.0f);
-                    newEntry.setTime(0.0f);
-                    newEntry.setSpeed(0);
+                if (previousEntry == null
+                        //|| !formatPreviousMonth(date).get(i).equals(formatPreviousDate(date))
+                 ) {
 
-                    if (formatMonth().get(i).equals(formatDate)) {
-                        newEntry.setDistance(distance);
-                        newEntry.setTime(time);
-                        newEntry.setSpeed(speed);
-                    }
-                    entryRepository.save(newEntry);
-                } else {
-                    if (formatMonth().get(i).equals(formatDate)) {
-                        existingDate.setTime(time);
-                        existingDate.setDistance(distance);
-                        existingDate.setSpeed(speed);
 
-                        entryRepository.save(existingDate);
-                    }
+                        Entry newEntry = new Entry();
+                        newEntry.setDate(formatMonth().get(i));
+                        newEntry.setDistance(0.0f);
+                        newEntry.setTime(0.0f);
+                        newEntry.setSpeed(0);
+                        newEntry.setTotalDistance(0);
 
+                        if (formatMonth().get(i).equals(formatDate)) {
+                            newEntry.setDistance(distance);
+                            newEntry.setTime(time);
+                            newEntry.setSpeed(speed);
+                        }
+                        entryRepository.save(newEntry);
+                        model.addAttribute("entries", entryRepository.findAll());
+                    } else if (formatPreviousMonth(date).get(i).equals(formatPreviousDate(date)))
+/*
+                    Entry previousEntry = new Entry();
+                    previousEntry.setDate(formatPreviousMonth(date).get(i));
+                    previousEntry.setDistance(0.0f);
+                    previousEntry.setTime(0.0f);
+                    previousEntry.setSpeed(0);
+                    previousEntry.setTotalDistance(0);
+*/
+                    {
+                        previousEntry.setDate(formatPreviousDate(date));
+                        previousEntry.setDistance(distance);
+                        previousEntry.setTime(time);
+                        previousEntry.setSpeed(speed);
+                        previousEntry.setTotalDistance(0);
+
+
+                    entryRepository.save(previousEntry);
                     model.addAttribute("entries", entryRepository.findAll());
-
-
-
                 }
-                if (existingDate != null) {
+
+                /*else if (formatMonth().get(i).equals(formatDate)){
+                    existingDate.setTime(time);
+                    existingDate.setDistance(distance);
+                    existingDate.setSpeed(speed);
+
+                    entryRepository.save(existingDate);
+                    model.addAttribute("entries", entryRepository.findAll());
+                } else {
+
+                        Entry newEntry = new Entry();
+                        newEntry.setDate(formatMonth().get(i));
+                        newEntry.setDistance(0.0f);
+                        newEntry.setTime(0.0f);
+                        newEntry.setSpeed(0);
+                        newEntry.setTotalDistance(0);
+
+                        if (formatMonth().get(i).equals(formatDate)) {
+                            newEntry.setDistance(distance);
+                            newEntry.setTime(time);
+                            newEntry.setSpeed(speed);
+                        }
+                        entryRepository.save(newEntry);
+                        model.addAttribute("entries", entryRepository.findAll());
+                    } */
+                if (previousEntry != null) {
                     List<Float> distances = new ArrayList<>();
                     distances.add(existingDate.getDistance());
                     for (Float listOfDistances : distances) {
@@ -142,10 +208,11 @@ public class ChartController {
                     Map<Integer, Integer> map = new HashMap<Integer, Integer>();
                     for (Map.Entry<Integer, List<Float>> totalDist : distanceByWeek.entrySet()) {
                         if (totalDist.getKey() == week && dayNumber == 7) {
-                            existingDate.setTotalDistance(sum(totalDist.getValue()));
+       //                     previousEntry.setTotalDistance(sum(totalDist.getValue()));
+                            previousEntry.setTotalDistance(sum(totalDist.getValue()));
                         }
                     }
-                    entryRepository.save(existingDate);
+                    entryRepository.save(previousEntry);
                 }
             }
         }
