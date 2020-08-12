@@ -120,102 +120,68 @@ public class ChartController {
             LocalDate localDate = LocalDate.parse(date);
             String formatDate = formatDate(localDate);
 
-
             Map<Integer, List<Float>> distanceByWeek = new HashMap<>();
 
             for (int i = 0; i < getPreviousMonth(date).size(); i++) {
                 double speed = Math.round((distance / (time / 60)) * 100.0) / 100.0;
-                Entry existingDate = entryRepository.findByDate(formatDate);
-                Entry previousEntry = entryRepository.findByDate(formatDate);
+                Entry existingDate = entryRepository.findByDate(formatPreviousMonth(date).get(i));
 
-
-                DayOfWeek dayOfWeek = getMonth().get(i).getDayOfWeek();
+                DayOfWeek dayOfWeek = LocalDate.parse(getPreviousMonth(date).get(i)).getDayOfWeek();
                 int dayNumber = dayOfWeek.getValue();
 
-                LocalDate weekday = getMonth().get(i);
+                LocalDate weekday = LocalDate.parse(getPreviousMonth(date).get(i));
                 int week = weekday.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
 
-                if (previousEntry == null
-                        //|| !formatPreviousMonth(date).get(i).equals(formatPreviousDate(date))
-                 ) {
+                if (existingDate == null || !formatPreviousMonth(date).get(i).equals(existingDate.getDate())) {
+                    Entry newEntry = new Entry();
+                    newEntry.setDate(formatPreviousMonth(date).get(i));
+                    newEntry.setDistance(0.0f);
+                    newEntry.setTime(0.0f);
+                    newEntry.setSpeed(0);
+                    newEntry.setTotalDistance(0.0f);
 
-
-                        Entry newEntry = new Entry();
-                        newEntry.setDate(formatMonth().get(i));
-                        newEntry.setDistance(0.0f);
-                        newEntry.setTime(0.0f);
-                        newEntry.setSpeed(0);
-                        newEntry.setTotalDistance(0);
-
-                        if (formatMonth().get(i).equals(formatDate)) {
-                            newEntry.setDistance(distance);
-                            newEntry.setTime(time);
-                            newEntry.setSpeed(speed);
+                    if (formatPreviousMonth(date).get(i).equals(formatPreviousDate(date))) {
+                        newEntry.setDistance(distance);
+                        newEntry.setTime(time);
+                        newEntry.setSpeed(speed);
+                    }
+                    List<Float> distances = new ArrayList<>();
+                    distances.add(newEntry.getDistance());
+                    for (Float listOfDistances : distances) {
+                        distanceByWeek.computeIfAbsent(week, k -> new ArrayList<>()).add(listOfDistances);
+                    }
+                    for (Map.Entry<Integer, List<Float>> totalDist : distanceByWeek.entrySet()) {
+                        if (totalDist.getKey() == week && dayNumber == 7) {
+                            newEntry.setTotalDistance(sum(totalDist.getValue()));
                         }
-                        entryRepository.save(newEntry);
-                        model.addAttribute("entries", entryRepository.findAll());
-                    } else if (formatPreviousMonth(date).get(i).equals(formatPreviousDate(date)))
-/*
-                    Entry previousEntry = new Entry();
-                    previousEntry.setDate(formatPreviousMonth(date).get(i));
-                    previousEntry.setDistance(0.0f);
-                    previousEntry.setTime(0.0f);
-                    previousEntry.setSpeed(0);
-                    previousEntry.setTotalDistance(0);
-*/
-                    {
-                        previousEntry.setDate(formatPreviousDate(date));
-                        previousEntry.setDistance(distance);
-                        previousEntry.setTime(time);
-                        previousEntry.setSpeed(speed);
-                        previousEntry.setTotalDistance(0);
+                    }
 
-
-                    entryRepository.save(previousEntry);
-                    model.addAttribute("entries", entryRepository.findAll());
-                }
-
-                /*else if (formatMonth().get(i).equals(formatDate)){
-                    existingDate.setTime(time);
-                    existingDate.setDistance(distance);
-                    existingDate.setSpeed(speed);
-
-                    entryRepository.save(existingDate);
-                    model.addAttribute("entries", entryRepository.findAll());
+                    entryRepository.save(newEntry);
                 } else {
+                    if (formatPreviousMonth(date).get(i).equals(formatPreviousDate(date))) {
+                        existingDate.setTime(time);
+                        existingDate.setDistance(distance);
+                        existingDate.setSpeed(speed);
 
-                        Entry newEntry = new Entry();
-                        newEntry.setDate(formatMonth().get(i));
-                        newEntry.setDistance(0.0f);
-                        newEntry.setTime(0.0f);
-                        newEntry.setSpeed(0);
-                        newEntry.setTotalDistance(0);
-
-                        if (formatMonth().get(i).equals(formatDate)) {
-                            newEntry.setDistance(distance);
-                            newEntry.setTime(time);
-                            newEntry.setSpeed(speed);
-                        }
-                        entryRepository.save(newEntry);
-                        model.addAttribute("entries", entryRepository.findAll());
-                    } */
-                if (previousEntry != null) {
+                        entryRepository.save(existingDate);
+                    }
+                }
+                if (existingDate != null) {
                     List<Float> distances = new ArrayList<>();
                     distances.add(existingDate.getDistance());
                     for (Float listOfDistances : distances) {
                         distanceByWeek.computeIfAbsent(week, k -> new ArrayList<>()).add(listOfDistances);
                     }
-                    Map<Integer, Integer> map = new HashMap<Integer, Integer>();
                     for (Map.Entry<Integer, List<Float>> totalDist : distanceByWeek.entrySet()) {
                         if (totalDist.getKey() == week && dayNumber == 7) {
-       //                     previousEntry.setTotalDistance(sum(totalDist.getValue()));
-                            previousEntry.setTotalDistance(sum(totalDist.getValue()));
+                            existingDate.setTotalDistance(sum(totalDist.getValue()));
                         }
                     }
-                    entryRepository.save(previousEntry);
+                    entryRepository.save(existingDate);
                 }
             }
         }
+        model.addAttribute("entries", entryRepository.findAll());
         return "monthly";
     }
 
@@ -262,47 +228,50 @@ public class ChartController {
                 monthAbbrList.add(monthResultSet.getString("month_abbr"));
             }
 
-                for (int j = 0; j < dateCombinationByMonth.size(); j++) {
-                    Iterable<YearTotals> existingYearTotals = yearTotalsRepository.findAll();
-                    String day = dateCombinationByMonth.get(j);
-                    Float monthlyDistance = monthTotals.get(j);
+            for (int j = 0; j < dateCombinationByMonth.size(); j++) {
+                Iterable<YearTotals> existingYearTotals = yearTotalsRepository.findAll();
+                String day = dateCombinationByMonth.get(j);
+                Float monthlyDistance = monthTotals.get(j);
 
-                    distanceByMonth.put(day, monthlyDistance);
-                }
-                    Map<String, Float> result = new HashMap<>();
-                    for(Map.Entry<String, Float> distByMonth : distanceByMonth.entrySet()){
-                        String key = distByMonth.getKey().split("-")[1];
-                        Float value = distByMonth.getValue();
-                        Float oldValue = result.get(key) != null ? result.get(key) : 0.0f;
-                        result.put(key, oldValue + value);
-                    }
+                distanceByMonth.put(day, monthlyDistance);
+            }
+            Map<String, Float> result = new HashMap<>();
+            for(Map.Entry<String, Float> distByMonth : distanceByMonth.entrySet()){
+                String key = distByMonth.getKey().split("-")[1];
+                Float value = distByMonth.getValue();
+                Float oldValue = result.get(key) != null ? result.get(key) : 0.0f;
+                result.put(key, oldValue + value);
+            }
 
             Iterable<YearTotals> existingYearTotals = yearTotalsRepository.findAll();
-                    for (YearTotals exYearTotals : existingYearTotals) {
-                        for (String entry : result.keySet()) {
-                            for(int k=0; k<12; k++){
-                                if (entry.equals(exYearTotals.getMonthAbbr())) {
-                                    exYearTotals.setTotal(result.get(entry));
-                                }
-                            }
-
+            for (YearTotals exYearTotals : existingYearTotals) {
+                for (String entry : result.keySet()) {
+                    for(int k=0; k<12; k++){
+                        if (entry.equals(exYearTotals.getMonthAbbr())) {
+                            exYearTotals.setTotal(result.get(entry));
                         }
-                            exYearTotals.setYear(year);
-                            exYearTotals.setGrandTotal(0);
-                            yearTotalsRepository.save(exYearTotals);
-                        }
-
-                        if (multipleYearNums.contains(year)) {
-                            yearNumber = year;
                     }
 
-                model.addAttribute("yearNumber", yearNumber);
-                model.addAttribute("yearTotals", yearTotalsRepository.findAll());
-                conn.close();
+                }
+                exYearTotals.setYear(year);
+                exYearTotals.setGrandTotal(0);
+                yearTotalsRepository.save(exYearTotals);
+            }
+
+            if (multipleYearNums.contains(year)) {
+                yearNumber = year;
+            }
+
+            model.addAttribute("yearNumber", yearNumber);
+            model.addAttribute("yearTotals", yearTotalsRepository.findAll());
+            conn.close();
         }
         return "yearly";
     }
 }
+
+
+
 
 
 
