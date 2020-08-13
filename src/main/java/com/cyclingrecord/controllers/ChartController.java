@@ -112,13 +112,29 @@ public class ChartController {
                     newEntry.setDistance(0.0f);
                     newEntry.setTime(0.0f);
                     newEntry.setSpeed(0);
+                    newEntry.setTotalDistance(0.0f);
+                    entryRepository.save(newEntry);
 
                     if (formatMonth().get(i).equals(formatDate)) {
                         newEntry.setDistance(distance);
                         newEntry.setTime(time);
                         newEntry.setSpeed(speed);
+
+                            List<Float> distances = new ArrayList<>();
+                            distances.add(newEntry.getDistance());
+                            for (Float listOfDistances : distances) {
+                                distanceByWeek.computeIfAbsent(week, k -> new ArrayList<>()).add(listOfDistances);
+                            }
+                            Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+                            for (Map.Entry<Integer, List<Float>> totalDist : distanceByWeek.entrySet()) {
+                                if (totalDist.getKey() == week && dayNumber == 7) {
+                                    newEntry.setTotalDistance(sum(totalDist.getValue()));
+                                }
+                            }
+                        entryRepository.save(newEntry);
                     }
-                    entryRepository.save(newEntry);
+
+
                 } else {
                     if (formatMonth().get(i).equals(formatDate)) {
                         existingDate.setTime(time);
@@ -129,9 +145,6 @@ public class ChartController {
                     }
 
                     model.addAttribute("entries", entryRepository.findAll());
-
-
-
                 }
                 if (existingDate != null) {
                     List<Float> distances = new ArrayList<>();
@@ -193,6 +206,20 @@ public class ChartController {
             ResultSet monthResultSet = monthStmt.executeQuery();
             while (monthResultSet.next()) {
                 monthAbbrList.add(monthResultSet.getString("month_abbr"));
+            }
+
+            //Get all days
+            PreparedStatement dayStmt = conn.prepareStatement("SELECT date FROM cyclingrecord.entry");
+            ResultSet dayResultSet = dayStmt.executeQuery();
+            while (dayResultSet.next()) {
+                dateCombinationByMonth.add(dayResultSet.getString("date"));
+            }
+
+            //Get all distances
+            PreparedStatement distanceStmt = conn.prepareStatement("SELECT distance FROM cyclingrecord.entry");
+            ResultSet distanceResultSet = distanceStmt.executeQuery();
+            while (distanceResultSet.next()) {
+                monthTotals.add(distanceResultSet.getFloat("distance"));
             }
 
                 for (int j = 0; j < dateCombinationByMonth.size(); j++) {
