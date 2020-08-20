@@ -8,11 +8,10 @@ import com.cyclingrecord.models.YearTotals;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import javax.sound.midi.SysexMessage;
+import javax.validation.Valid;
 import java.sql.*;
 import java.text.DateFormatSymbols;
 import java.time.*;
@@ -111,7 +110,7 @@ public class ChartController {
     }
 
 
-    @RequestMapping("monthly")
+    @RequestMapping(value="monthly")
     public String showMonthlyTable(@ModelAttribute Entry entry, Model model, @RequestParam(required = false) String date, @RequestParam(required = false) Float distance, @RequestParam(required = false) Float time) throws Exception {
 
         if (date == null || distance == null || time == null) {
@@ -202,7 +201,59 @@ public class ChartController {
                 }
             }
         }
+        ArrayList<String> monthAbbrList = new ArrayList<>();
+        Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/cyclingrecord", "cyclingrecord", "Hmveonl00");
+        //Get array of month abbreviations
+        PreparedStatement monthStmt = conn.prepareStatement("SELECT month_abbr FROM cyclingrecord.year_totals");
+        ResultSet monthResultSet = monthStmt.executeQuery();
+        while (monthResultSet.next()) {
+            monthAbbrList.add(monthResultSet.getString("month_abbr"));
+        }
+
+
+
+
+        model.addAttribute("months", monthAbbrList);
+
+
+
+
+
+
         model.addAttribute("entries", entryRepository.findAll());
+        return "monthly";
+    }
+
+    @PostMapping("/monthly")
+    public String montlySubmittal(Model model,  @RequestParam(required=false) String month) throws SQLException {
+        System.out.println(month);
+        //Set monthly view
+        Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/cyclingrecord", "cyclingrecord", "Hmveonl00");
+        ArrayList<String> rd = new ArrayList<>();
+
+        PreparedStatement dayStmt = conn.prepareStatement("SELECT * FROM cyclingrecord.entry WHERE date LIKE CONCAT('%',?,'%')");
+        dayStmt.setString(1, month);
+        ResultSet dayResultSet = dayStmt.executeQuery();
+
+        while(dayResultSet.next()){
+            String resultDate = dayResultSet.getString("date");
+            rd.add(resultDate);
+            model.addAttribute("monthResult", rd);
+        }
+
+        ArrayList<String> monthAbbrList = new ArrayList<>();
+
+        //Get array of month abbreviations
+        PreparedStatement monthStmt = conn.prepareStatement("SELECT month_abbr FROM cyclingrecord.year_totals");
+        ResultSet monthResultSet = monthStmt.executeQuery();
+        while (monthResultSet.next()) {
+            monthAbbrList.add(monthResultSet.getString("month_abbr"));
+        }
+
+
+
+
+        model.addAttribute("months", monthAbbrList);
         return "monthly";
     }
 

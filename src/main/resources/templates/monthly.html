@@ -10,10 +10,13 @@
     <div class="btn-container">
         <button type="button" class="btn btn-primary" onclick="window.location.href = '/form';">Return to Entry Form</button>
     </div>
-    <select th:field="*{entries}">
+    <form th:action="@{/monthly}" th:object="${month}" method="post">
+    <select th:field="*{months}">
         <option th:each="mo : ${months}" th:value="${mo}" th:text="${mo}">
         </option>
     </select>
+    <button class="btn btn-primary" name="submit" type="submit" value="submit">Submit form</button>
+    </form>
     <table class="table table-sm table-bordered" >
         <thead class="thead-light">
             <tr>
@@ -24,13 +27,28 @@
                 <th scope="col">Weekly Total</th>
             </tr>
         </thead>
-        <tr th:each= "entry : ${entries}">
+
+  <!--      <tr th:each= "entry : ${entries}" >
+            <th:block th:if = '${#entry.date.contains(mo)}'>
             <td th:text = ${entry.date}></td>
             <td th:text = ${entry.speed}></td>
             <td th:text = ${entry.time}></td>
             <td th:text = ${entry.distance}></td>
             <td th:text = ${entry.totalDistance}></td>
+            </th:block>
         </tr>
+        <tr th:each= "mr : ${monthResult}" >
+                <td th:text = ${mr.date}></td>
+                <td th:text = ${mr.speed}></td>
+                <td th:text = ${mr.time}></td>
+                <td th:text = ${mr.distance}></td>
+                <td th:text = ${mr.totalDistance}></td>
+        </tr>
+        -->
+        <tr th:each= "mr : ${monthResult}">
+            <td th:text = ${mr}></td>
+        </tr>
+
     </table>
 </br>
 </div>
