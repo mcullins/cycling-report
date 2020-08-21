@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.WebRequest;
 
 import javax.sound.midi.SysexMessage;
 import javax.validation.Valid;
@@ -110,8 +111,8 @@ public class ChartController {
     }
 
 
-    @RequestMapping(value="monthly")
-    public String showMonthlyTable(@ModelAttribute Entry entry, Model model, @RequestParam(required = false) String date, @RequestParam(required = false) Float distance, @RequestParam(required = false) Float time) throws Exception {
+    @RequestMapping(value="monthly", method = { RequestMethod.GET, RequestMethod.POST })
+    public String showMonthlyTable(@ModelAttribute Entry entry, Model model, @RequestParam(required = false) String date, @RequestParam(required = false) Float distance, @RequestParam(required = false) Float time, @RequestParam(value="month", required = false) String month, WebRequest request) throws Exception {
 
         if (date == null || distance == null || time == null) {
             model.addAttribute("entries", entryRepository.findAll());
@@ -215,15 +216,25 @@ public class ChartController {
 
         model.addAttribute("months", monthAbbrList);
 
+        System.out.println(request.getParameter("month"));
+        //Set monthly view
 
+        ArrayList<String> rd = new ArrayList<>();
 
+        PreparedStatement dayStmt = conn.prepareStatement("SELECT * FROM cyclingrecord.entry WHERE date LIKE CONCAT('%',?,'%')");
+        dayStmt.setString(1, request.getParameter("month"));
+        ResultSet dayResultSet = dayStmt.executeQuery();
 
-
+        while(dayResultSet.next()){
+            String resultDate = dayResultSet.getString("date");
+            rd.add(resultDate);
+            model.addAttribute("monthResult", rd);
+        }
 
         model.addAttribute("entries", entryRepository.findAll());
         return "monthly";
     }
-
+/*
     @PostMapping("/monthly")
     public String montlySubmittal(Model model,  @RequestParam(required=false) String month) throws SQLException {
         System.out.println(month);
@@ -256,7 +267,7 @@ public class ChartController {
         model.addAttribute("months", monthAbbrList);
         return "monthly";
     }
-
+*/
     @RequestMapping("/yearly")
     public String yearTotalChart(Model model) throws SQLException {
         int year = Year.now().getValue();

@@ -10,12 +10,13 @@
     <div class="btn-container">
         <button type="button" class="btn btn-primary" onclick="window.location.href = '/form';">Return to Entry Form</button>
     </div>
-    <form th:action="@{/monthly}" th:object="${month}" method="post">
+    <form action='/monthly' method="get">
     <select th:field="*{months}">
-        <option th:each="mo : ${months}" th:value="${mo}" th:text="${mo}">
+        <option th:each="mo : ${months}" value="@{/(month=${mo})}" th:text="${mo}" th:name="${mo}">
         </option>
+        <option th:value="Aug" th:text="Aug" th:name="month"></option>
     </select>
-    <button class="btn btn-primary" name="submit" type="submit" value="submit">Submit form</button>
+        <button class="btn btn-primary" type = 'submit' value="submit">Submit</button>
     </form>
     <table class="table table-sm table-bordered" >
         <thead class="thead-light">
